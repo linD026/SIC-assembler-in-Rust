@@ -239,7 +239,7 @@ fn pass2(
         let mut opcode = list[i][0].to_owned();
         let mut operand = String::from("");
         if has_label(&list[i]) {
-            // opcode is label right noew, change to real opcode
+            // opcode is label right now, change to real opcode
             opcode = list[i][1].to_owned();
             if list[i].len() == 3 {
                 operand = list[i][2].to_owned();

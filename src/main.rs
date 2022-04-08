@@ -220,6 +220,7 @@ fn pass2(
 
     let mut line = String::new();
     let mut tstart = loc_ctr;
+    let mut res_flag : bool = false;
 
     for i in 1..list.len() {
         if list[i][0] == "END" {
@@ -253,7 +254,7 @@ fn pass2(
             if i.len() == 0 {
                 panic!("[ERROR] UNDEFINED SYMBOL");
             }
-            if loc_ctr + 3 - tstart > 30 {
+            if loc_ctr + 3 - tstart > 30 || res_flag == true {
                 write_text(&mut file, tstart, &line);
                 tstart = loc_ctr;
                 line = i;
@@ -271,6 +272,7 @@ fn pass2(
                 line.push_str(&constant[..]);
             }
             loc_ctr += 3;
+            res_flag = false;
         } else if opcode == "BYTE" {
             let mut constant = String::new();
             let mut operand_len: i32 = 0;
@@ -297,10 +299,13 @@ fn pass2(
                 line.push_str(&constant[..]);
             }
             loc_ctr += operand_len;
+            res_flag = false;
         } else if opcode == "RESB" {
             loc_ctr += operand.parse::<i32>().unwrap();
+            res_flag = true;
         } else if opcode == "RESW" {
             loc_ctr += operand.parse::<i32>().unwrap() * 3;
+            res_flag = true;
         } else {
             panic!(
                 "\n[ERROR pass2] Invalid instruction/directive\n opcode {:?}\n",

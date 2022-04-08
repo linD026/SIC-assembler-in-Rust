@@ -123,6 +123,7 @@ fn file_to_tokenlist(file_name: &String) -> Vec<Vec<String>> {
     if let Ok(lines) = read_lines(file_name) {
         for line in lines {
             if let Ok(s) = line {
+                // skip the comment
                 if s.chars().nth(0).unwrap() != '.' {
                     let mut v = Vec::new();
                     for token in s.split_whitespace() {
@@ -136,6 +137,9 @@ fn file_to_tokenlist(file_name: &String) -> Vec<Vec<String>> {
     list
 }
 
+// has_label() will execute before the END action
+// but we don't want to handle any thing about END
+// so we need to skip END
 fn has_label(line: &Vec<String>) -> bool {
     !(line.len() == 1 || is_instruction(&line[0])) && line[0].as_str() != "END"
 }
@@ -212,6 +216,7 @@ fn pass2(
     }
     let starting: i32 = loc_ctr;
 
+    // Header record
     let mut header = "H".to_string() + &prog_name(name);
     header.push_str(&hex_str_to_word(format!("{:x}", starting)));
     header.push_str(&hex_str_to_word(format!("{:x}", prog_len)));
@@ -235,16 +240,20 @@ fn pass2(
             operand = list[i][1].to_owned();
         }
 
+        // End record
         // Need consider there have label at END
         if list[i][0] == "END" || opcode == "END" {
+            // flush remaining text record
             if line.len() > 0 {
                 write_text(&mut file, tstart, &line);
             }
             let mut addr = starting;
-            if list[i].len() == 2 {
-                addr = sym_table.get(&list[i][1]).unwrap().clone();
+            match list[i].len() {
+                1 => (),
+                2 => addr = sym_table.get(&list[i][1]).unwrap().clone(),
+                3 => addr = sym_table.get(&list[i][2]).unwrap().clone(),
+                _ => panic!("[ERROR] end word\n"),
             }
-
             let end = "E".to_string() + &hex_str_to_word(format!("{:x}", addr));
             file_write(&mut file, &end);
             break;
@@ -292,7 +301,6 @@ fn pass2(
                     constant.push_str(&tmp[..]);
                 }
             }
-
             if loc_ctr + operand_len - tstart > 30 || res_flag == true {
                 write_text(&mut file, tstart, &line);
                 tstart = loc_ctr;

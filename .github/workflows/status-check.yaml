@@ -1,0 +1,18 @@
+
+name: status-checks
+
+on:
+  push:
+    branches: [ main ]
+
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: validate functionality
+        run: |
+            .ci/check.sh
+        shell: bash

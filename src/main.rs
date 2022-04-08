@@ -225,7 +225,7 @@ fn pass2(
 
     let mut line = String::new();
     let mut tstart = loc_ctr;
-    let mut res_flag : bool = false;
+    let mut res_flag: bool = false;
 
     for i in 1..list.len() {
         let mut opcode = list[i][0].to_owned();

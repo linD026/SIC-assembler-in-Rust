@@ -69,7 +69,7 @@ fn file_to_tokenlist(file_name: &String) -> Vec<Vec<String>> {
 }
 
 fn has_label(line: &Vec<String>) -> bool {
-    !(line.len() == 1 || is_instruction(&line[0]))
+    !(line.len() == 1 || is_instruction(&line[0])) && line[0].as_str() != "END"
 }
 
 fn pass1(list: &Vec<Vec<String>>) -> (HashMap<String, i32>, i32) {
@@ -84,10 +84,6 @@ fn pass1(list: &Vec<Vec<String>>) -> (HashMap<String, i32>, i32) {
     let starting = loc_ctr;
 
     for i in 1..list.len() {
-        if list[i][0] == "END" {
-            break;
-        }
-
         let mut opcode = list[i][0].clone();
         if has_label(&list[i]) {
             let label = opcode.clone();
@@ -96,6 +92,11 @@ fn pass1(list: &Vec<Vec<String>>) -> (HashMap<String, i32>, i32) {
                 panic!("\n[ERROR] duplicate labels\n");
             }
             sym_table.insert(label, loc_ctr);
+        }
+
+        // Need consider there has a label at END
+        if list[i][0] == "END" || opcode == "END" {
+            break;
         }
 
         if is_instruction(&opcode) == true || opcode == "WORD" {
@@ -113,8 +114,8 @@ fn pass1(list: &Vec<Vec<String>>) -> (HashMap<String, i32>, i32) {
             loc_ctr += (list[i][2].parse::<i32>().unwrap() * 3) as i32;
         } else {
             panic!(
-                "\n[ERROR pass1] Invalid instruction/directive\n opcode {:?}\n",
-                opcode
+                "\n[ERROR pass1] Invalid instruction/directive\n {:?}\n\nopcode: {:?}\n",
+                list[i], opcode
             );
         }
     }
@@ -223,7 +224,20 @@ fn pass2(
     let mut res_flag : bool = false;
 
     for i in 1..list.len() {
-        if list[i][0] == "END" {
+        let mut opcode = list[i][0].to_owned();
+        let mut operand = String::from("");
+        if has_label(&list[i]) {
+            // opcode is label right now, change to real opcode
+            opcode = list[i][1].to_owned();
+            if list[i].len() == 3 {
+                operand = list[i][2].to_owned();
+            }
+        } else if list[i].len() == 2 {
+            operand = list[i][1].to_owned();
+        }
+
+        // Need consider there have label at END
+        if list[i][0] == "END" || opcode == "END" {
             if line.len() > 0 {
                 write_text(&mut file, tstart, &line);
             }
@@ -235,18 +249,6 @@ fn pass2(
             let end = "E".to_string() + &hex_str_to_word(format!("{:x}", addr));
             file_write(&mut file, &end);
             break;
-        }
-
-        let mut opcode = list[i][0].to_owned();
-        let mut operand = String::from("");
-        if has_label(&list[i]) {
-            // opcode is label right now, change to real opcode
-            opcode = list[i][1].to_owned();
-            if list[i].len() == 3 {
-                operand = list[i][2].to_owned();
-            }
-        } else if list[i].len() == 2 {
-            operand = list[i][1].to_owned();
         }
 
         if is_instruction(&opcode) {
@@ -262,9 +264,10 @@ fn pass2(
                 line.push_str(&i[..]);
             }
             loc_ctr += 3;
+            res_flag = false;
         } else if opcode == "WORD" {
             let constant = hex_str_to_word(format!("{:x}", operand.parse::<i32>().unwrap()));
-            if loc_ctr + 3 - tstart > 30 {
+            if loc_ctr + 3 - tstart > 30 || res_flag == true {
                 write_text(&mut file, tstart, &line);
                 tstart = loc_ctr;
                 line = constant;
@@ -291,7 +294,7 @@ fn pass2(
                 }
             }
 
-            if loc_ctr + operand_len - tstart > 30 {
+            if loc_ctr + operand_len - tstart > 30 || res_flag == true {
                 write_text(&mut file, tstart, &line);
                 tstart = loc_ctr;
                 line = constant;

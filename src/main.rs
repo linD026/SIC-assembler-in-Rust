@@ -49,6 +49,74 @@ where
     Ok(io::BufReader::new(file).lines())
 }
 
+fn file_to_obj_name(file_name: &String) -> String {
+    let mut name: Vec<&str> = file_name.split('.').collect();
+    name.remove(name.len() - 1);
+    let name = name.pop();
+    let mut name: Vec<&str> = name.unwrap().split('/').collect();
+    let obj_name = name.pop();
+    let mut obj_name = obj_name.unwrap().to_string();
+    obj_name.push_str(".obj");
+    obj_name
+}
+
+fn file_write(file: &mut File, s: &String) {
+    match write!(file, "{}", s) {
+        Err(why) => panic!("couldn't write to {}", why),
+        Ok(_) => (),
+    }
+}
+
+fn prog_name(mut s: String) -> String {
+    for _ in 0..6 - s.len() {
+        s.push(' ');
+    }
+    s
+}
+
+fn hex_str_to_word(mut s: String) -> String {
+    s.make_ascii_uppercase();
+    for _ in 0..6 - s.len() {
+        s.insert(0, '0');
+    }
+    s
+}
+
+fn write_text(file: &mut File, starting: i32, line: &String) {
+    let mut text = "T".to_string() + &hex_str_to_word(format!("{:x}", starting));
+    let mut l = format!("{:x}", line.len() / 2);
+
+    for _ in 0..2 - l.len() {
+        l.insert(0, '0');
+    }
+
+    l.make_ascii_uppercase();
+    text.push_str(&l[..].to_owned());
+    text.push_str(&line[..].to_owned());
+    text.push_str("\n");
+    file_write(file, &text);
+}
+
+fn create_instruction(
+    opcode: &String,
+    operand: &mut String,
+    sym_table: &HashMap<String, i32>,
+) -> String {
+    let mut i: i32 = instruction(opcode) as i32 * 65536;
+    if operand.len() > 0 {
+        if &operand[operand.len() - 2..] == ",X" {
+            i += 32768;
+            operand.truncate(operand.len() - 2);
+        }
+        if sym_table.contains_key(operand) {
+            i += sym_table.get(operand).unwrap();
+        } else {
+            return String::from("");
+        }
+    }
+    hex_str_to_word(String::from(format!("{:x}", i)))
+}
+
 fn file_to_tokenlist(file_name: &String) -> Vec<Vec<String>> {
     let mut list = Vec::new();
     println!("[FILE] {:?}", file_name);
@@ -122,75 +190,6 @@ fn pass1(list: &Vec<Vec<String>>) -> (HashMap<String, i32>, i32) {
 
     (sym_table, loc_ctr - starting)
 }
-
-fn file_to_obj_name(file_name: &String) -> String {
-    let mut name: Vec<&str> = file_name.split('.').collect();
-    name.remove(name.len() - 1);
-    let name = name.pop();
-    let mut name: Vec<&str> = name.unwrap().split('/').collect();
-    let obj_name = name.pop();
-    let mut obj_name = obj_name.unwrap().to_string();
-    obj_name.push_str(".obj");
-    obj_name
-}
-
-fn file_write(file: &mut File, s: &String) {
-    match write!(file, "{}", s) {
-        Err(why) => panic!("couldn't write to {}", why),
-        Ok(_) => (),
-    }
-}
-
-fn prog_name(mut s: String) -> String {
-    for _ in 0..6 - s.len() {
-        s.push(' ');
-    }
-    s
-}
-
-fn hex_str_to_word(mut s: String) -> String {
-    s.make_ascii_uppercase();
-    for _ in 0..6 - s.len() {
-        s.insert(0, '0');
-    }
-    s
-}
-
-fn write_text(file: &mut File, starting: i32, line: &String) {
-    let mut text = "T".to_string() + &hex_str_to_word(format!("{:x}", starting));
-    let mut l = format!("{:x}", line.len() / 2);
-
-    for _ in 0..2 - l.len() {
-        l.insert(0, '0');
-    }
-
-    l.make_ascii_uppercase();
-    text.push_str(&l[..].to_owned());
-    text.push_str(&line[..].to_owned());
-    text.push_str("\n");
-    file_write(file, &text);
-}
-
-fn create_instruction(
-    opcode: &String,
-    operand: &mut String,
-    sym_table: &HashMap<String, i32>,
-) -> String {
-    let mut i: i32 = instruction(opcode) as i32 * 65536;
-    if operand.len() > 0 {
-        if &operand[operand.len() - 2..] == ",X" {
-            i += 32768;
-            operand.truncate(operand.len() - 2);
-        }
-        if sym_table.contains_key(operand) {
-            i += sym_table.get(operand).unwrap();
-        } else {
-            return String::from("");
-        }
-    }
-    hex_str_to_word(String::from(format!("{:x}", i)))
-}
-
 fn pass2(
     file_name: &String,
     list: Vec<Vec<String>>,
